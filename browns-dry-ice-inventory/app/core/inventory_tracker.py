@@ -15,8 +15,7 @@ class InventoryTracker:
     def reorder_point(self):
         eoq = self.dry_ice_analyzer.calculate_eoq()
         safety_stock = self.dry_ice_analyzer.calculate_safety_stock()
-        # return eoq + safety_stock
-        return 5
+        return eoq + safety_stock
 
     @property
     def safety_stock(self):

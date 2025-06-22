@@ -4,7 +4,6 @@ from prophet import Prophet
 from scipy.stats import norm
 import config.constants as const
 from datetime import datetime, timedelta
-from .advanced_forecasting import AdvancedForecasting
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -12,7 +11,6 @@ class DryIceAnalyzer:
     def __init__(self, data_loader):
         self.data_loader = data_loader
         self.constants = const.INVENTORY_PARAMETERS
-        self.forecaster = AdvancedForecasting()
         
     def calculate_kpis(self):
         """Calculate all key performance indicators"""
@@ -70,8 +68,28 @@ class DryIceAnalyzer:
         return z_score * daily_std * lead_time_factor
     
     def forecast_demand(self, periods=30):
-        """Generate demand forecast with advanced models"""
-        return self.forecaster.multi_model_forecast(self.data_loader.df, periods)
+        """Generate demand forecast with Prophet"""
+        try:
+            # Prepare data for Prophet
+            prophet_df = self.data_loader.df.groupby('Date')['Order_Quantity_kg'].sum().reset_index()
+            prophet_df = prophet_df.rename(columns={'Date': 'ds', 'Order_Quantity_kg': 'y'})
+            
+            # Create and fit model
+            model = Prophet(
+                seasonality_mode='multiplicative',
+                yearly_seasonality=True,
+                weekly_seasonality=True,
+                daily_seasonality=False
+            )
+            model.fit(prophet_df)
+            
+            # Generate forecast
+            future = model.make_future_dataframe(periods=periods)
+            forecast = model.predict(future)
+            
+            return forecast
+        except Exception as e:
+            return None
     
     def calculate_cost_savings(self, eoq):
         """Compare current costs vs EOQ optimized costs"""
@@ -101,7 +119,3 @@ class DryIceAnalyzer:
             'savings': savings,
             'percent_savings': percent_savings
         }
-    
-    def seasonal_analysis(self):
-        """Perform seasonal decomposition"""
-        return self.forecaster.seasonal_decomposition(self.data_loader.df)
